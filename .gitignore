@@ -1,0 +1,15 @@
+.classpath
+.project
+.settings
+.svn
+.idea
+.metadata
+target
+*.iml
+atlassian-ide-plugin.xml
+node
+node_modules
+coverage
+out
+.nyc_output
+npm-debug.log
