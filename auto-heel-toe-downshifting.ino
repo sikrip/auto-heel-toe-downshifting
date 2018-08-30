@@ -16,10 +16,9 @@ const int NO_THROTTLE_POSITION = 42;
 // heel and toe state (throttle blip)
 const int BLIP_THROTTLE_POSITION = 60;
 
-// Last state of the brake and clutch switch
+// Last known state of the brake and clutch switch
 boolean lastState = LOW;
-// Current state of the brake and clutch switch
-boolean currentState = LOW;
+
 // Holds the start time of the throttle blip
 unsigned long blipStartTime;
 
@@ -38,6 +37,34 @@ boolean readBrakeAndClutchState() {
   return newState;
 }
 
+/**
+ * Check if a blip cancellation condition exists. For this to be true, the provided current state
+ * must be HIGH, the blip should not be already canceled and the blip duration must be more than
+ * {@link MAX_BLIP_DURATION}.
+ *
+ * @param currentState the current state of the brake/clutch switch (HIGH -> both pressed)
+ * @return true if the blip should be canceled, false otherwise
+ */
+boolean shouldStopBlip(boolean currentState) {
+  return blipStartTime != BLIP_CANCEL && currentState == HIGH && millis() - blipStartTime > MAX_BLIP_DURATION;
+}
+
+/**
+ * Applies throttle based on the provided state of the brake/clutch switch.
+ * If it is HIGH(both brake and clutch pressed), then a blip will be applied
+ * in the throttle. Otherwise the throttle will be closed.
+ *
+ * @param currentState the current state of the brake/clutch switch (HIGH -> both pressed)
+ */
+void applyThrottle(boolean currentState) {
+  if (currentState == HIGH){
+    blipStartTime = millis();
+    throttleServo.write(BLIP_THROTTLE_POSITION);
+  } else {
+    throttleServo.write(NO_THROTTLE_POSITION);
+  }
+}
+
 void setup() {
   throttleServo.attach(THROTTLE_SERVO_PIN);
 
@@ -47,22 +74,17 @@ void setup() {
 }
 
 void loop() {
-  currentState = readBrakeAndClutchState();
+  boolean currentState = readBrakeAndClutchState();
   if (lastState != currentState) {
-    // brake and clutch switch state changed, so apply throttle
-    // depending on the current state
-    if (currentState == HIGH){
-      blipStartTime = millis();
-      throttleServo.write(BLIP_THROTTLE_POSITION);
-    } else {
-      throttleServo.write(NO_THROTTLE_POSITION);
-    }
-  } else if (blipStartTime != BLIP_CANCEL && currentState == HIGH && millis() - blipStartTime > MAX_BLIP_DURATION) {
+      // state changed so apply throttle
+      applyThrottle(currentState);
+  } else if (shouldStopBlip(currentState)) {
+      // Close the throttle and mark the blip as canceled
       throttleServo.write(NO_THROTTLE_POSITION);
       blipStartTime = BLIP_CANCEL;
   }
   // if the switch state does not change and there is no blip cancellation condition
-  // there will be no change in the state of the servo
+  // there will be no change in the throttle servo
   
   // in any case store the current state
   lastState = currentState;
