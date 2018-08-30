@@ -2,6 +2,8 @@
 
 Servo throttleServo;
 
+const boolean DEBUG_ENABLED = true;
+
 const int BRAKE_CLUTCH_SWITCH_PIN = 2;
 const int THROTTLE_SERVO_PIN = 9;
 const unsigned long MAX_BLIP_DURATION = 300;
@@ -21,6 +23,18 @@ boolean lastState = LOW;
 
 // Holds the start time of the throttle blip
 unsigned long blipStartTime;
+
+/**
+ * If debug is enabled, writes the provided message to
+ * the serial port.
+ * 
+ * @param message the debug message
+ */
+void debugLog(String message) {
+  if (DEBUG_ENABLED) {
+    Serial.println(message);
+  }
+}
 
 /**
  * Reads the state of the brake/clutch switches.
@@ -57,20 +71,27 @@ boolean shouldStopBlip(boolean currentState) {
  * @param currentState the current state of the brake/clutch switch (HIGH -> both pressed)
  */
 void applyThrottle(boolean currentState) {
-  if (currentState == HIGH){
+  if (currentState == HIGH) {
+    debugLog("Staring blip");
     blipStartTime = millis();
     throttleServo.write(BLIP_THROTTLE_POSITION);
-  } else {
+  } else if(blipStartTime != BLIP_CANCEL) {
+    debugLog("Ending blip");
     throttleServo.write(NO_THROTTLE_POSITION);
   }
 }
 
 void setup() {
+  if (DEBUG_ENABLED) {
+    Serial.begin(9600);
+  }
   throttleServo.attach(THROTTLE_SERVO_PIN);
 
   // Make sure that initially the servo will not interfere
   // with the throttle
   throttleServo.write(NO_THROTTLE_POSITION);
+
+  debugLog("Initialized");
 }
 
 void loop() {
@@ -79,6 +100,8 @@ void loop() {
       // state changed so apply throttle
       applyThrottle(currentState);
   } else if (shouldStopBlip(currentState)) {
+      debugLog("Canceling blip");
+
       // Close the throttle and mark the blip as canceled
       throttleServo.write(NO_THROTTLE_POSITION);
       blipStartTime = BLIP_CANCEL;
