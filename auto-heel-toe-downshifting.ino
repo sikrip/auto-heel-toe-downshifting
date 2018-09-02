@@ -3,9 +3,13 @@
 Servo throttleServo;
 
 const boolean DEBUG_ENABLED = true;
+const unsigned long DEBOUNCE_MS = 5;
 
-const int BRAKE_CLUTCH_SWITCH_PIN = 2;
+const int CLUTCH_SWITCH_PIN = 2;
+const int BRAKE_SWITCH_PIN = 4;
 const int THROTTLE_SERVO_PIN = 9;
+const int BLIP_ACTIVE_PIN = 13;
+
 const unsigned long MAX_BLIP_DURATION = 300;
 const unsigned long BLIP_CANCEL = 0;
 
@@ -18,11 +22,20 @@ const int NO_THROTTLE_POSITION = 42;
 // heel and toe state (throttle blip)
 const int BLIP_THROTTLE_POSITION = 60;
 
-// Last known state of the brake and clutch switch
-boolean lastState = LOW;
+// Last known state of the clutch switch
+boolean lastClutchState = LOW;
+
+// Last known state of the brake switch
+boolean lastBrakeState = LOW;
 
 // Holds the start time of the throttle blip
 unsigned long blipStartTime;
+
+// Holds the start time of clutch pressed event
+unsigned long clutchPressedStartTime;
+
+// Holds the start time of brake pressed event
+unsigned long brakePressedStartTime;
 
 /**
  * If debug is enabled, writes the provided message to
@@ -37,16 +50,45 @@ void debugLog(String message) {
 }
 
 /**
- * Reads the state of the brake/clutch switches.
+ * Reads the state of the clutch switch.
  * Software debounce is performed in order to get a stable reading.
  *
- * @return the state of the brake/clutch switch
+ * @return the state of theclutch switch
  */
-boolean readBrakeAndClutchState() {
-  boolean newState = digitalRead(BRAKE_CLUTCH_SWITCH_PIN);
-  if (lastState != newState){
-    delay(5);
-    newState = digitalRead(BRAKE_CLUTCH_SWITCH_PIN);
+boolean readClutchState() {
+  boolean newState = digitalRead(CLUTCH_SWITCH_PIN);
+  if (lastClutchState != newState){
+    delay(DEBOUNCE_MS);
+    newState = digitalRead(CLUTCH_SWITCH_PIN);
+  }
+  if (DEBUG_ENABLED){
+    if (!lastClutchState && newState) {
+      clutchPressedStartTime = millis();
+    } else if (lastClutchState && !newState) {
+      debugLog("Clutch released, duration(ms):" + String(millis() - clutchPressedStartTime, DEC));  
+    }
+  }
+  return newState;
+}
+
+/**
+ * Reads the state of the brake switch.
+ * Software debounce is performed in order to get a stable reading.
+ *
+ * @return the state of theclutch switch
+ */
+boolean readBrakeState() {
+  boolean newState = digitalRead(BRAKE_SWITCH_PIN);
+  if (lastBrakeState != newState){
+    delay(DEBOUNCE_MS);
+    newState = digitalRead(BRAKE_SWITCH_PIN);
+  }
+  if (DEBUG_ENABLED){
+    if (!lastBrakeState && newState) {
+      brakePressedStartTime = millis();
+    } else if (lastBrakeState && !newState) {
+      debugLog("Brake released, duration(ms):" + String(millis() - brakePressedStartTime, DEC));  
+    }
   }
   return newState;
 }
@@ -72,12 +114,14 @@ boolean shouldStopBlip(boolean currentState) {
  */
 void applyThrottle(boolean currentState) {
   if (currentState == HIGH) {
-    debugLog("Staring blip");
+    debugLog("\nStaring blip");
     blipStartTime = millis();
     throttleServo.write(BLIP_THROTTLE_POSITION);
+    digitalWrite(BLIP_ACTIVE_PIN, HIGH);
   } else if(blipStartTime != BLIP_CANCEL) {
-    debugLog("Ending blip");
+    debugLog("Finishing blip, duration(ms): " + String(millis() - blipStartTime, DEC));
     throttleServo.write(NO_THROTTLE_POSITION);
+    digitalWrite(BLIP_ACTIVE_PIN, LOW);
   }
 }
 
@@ -85,30 +129,49 @@ void setup() {
   if (DEBUG_ENABLED) {
     Serial.begin(9600);
   }
+  pinMode(BLIP_ACTIVE_PIN, OUTPUT);
   throttleServo.attach(THROTTLE_SERVO_PIN);
 
   // Make sure that initially the servo will not interfere
   // with the throttle
   throttleServo.write(NO_THROTTLE_POSITION);
-
+  digitalWrite(BLIP_ACTIVE_PIN, LOW);
+  
   debugLog("Initialized");
 }
 
 void loop() {
-  boolean currentState = readBrakeAndClutchState();
+  boolean clutchState = readClutchState();
+  boolean brakeState = readBrakeState();
+
+  if (clutchState != lastClutchState) {
+    // TODO on/of the clutch led
+    debugLog(clutchState ? "Clutch Pressed": "Clutch Released");
+  }
+
+  if (brakeState != lastBrakeState) {
+    // TODO on/of the brake led
+    debugLog(brakeState ? "Brake Pressed": "Brake Released");
+  }
+
+  boolean lastState = lastClutchState && lastBrakeState;
+  boolean currentState = clutchState && brakeState;
   if (lastState != currentState) {
       // state changed so apply throttle
       applyThrottle(currentState);
   } else if (shouldStopBlip(currentState)) {
-      debugLog("Canceling blip");
+      debugLog("Canceling blip, max duration reached(ms): " + String(MAX_BLIP_DURATION, DEC));
 
       // Close the throttle and mark the blip as canceled
       throttleServo.write(NO_THROTTLE_POSITION);
+      digitalWrite(BLIP_ACTIVE_PIN, LOW);
+
       blipStartTime = BLIP_CANCEL;
   }
   // if the switch state does not change and there is no blip cancellation condition
   // there will be no change in the throttle servo
   
   // in any case store the current state
-  lastState = currentState;
+  lastClutchState = clutchState;
+  lastBrakeState = brakeState;
 }
