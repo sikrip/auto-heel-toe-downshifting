@@ -159,8 +159,8 @@ void setup() {
 }
 
 void loop() {
-    static boolean brakeStateChanged = brakeSwitch.update();
-    static boolean clutchStateChanged = clutchSwitch.update();
+    boolean brakeStateChanged = brakeSwitch.update();
+    boolean clutchStateChanged = clutchSwitch.update();
 
     if (clutchStateChanged || brakeStateChanged) {
         // State changed so apply throttle according to the current state of the clutch/brake switches
