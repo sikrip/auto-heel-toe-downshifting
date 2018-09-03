@@ -23,6 +23,9 @@ const int NO_THROTTLE_POSITION = 42;
 // heel and toe state (throttle blip)
 const int BLIP_THROTTLE_POSITION = 60;
 
+// True when the throttle is blipped, false otherwise
+boolean throttleBlip = false;
+
 // The clutch switch
 Bounce clutchSwitch = Bounce();
 // Holds the start time of clutch pressed event
@@ -44,9 +47,9 @@ unsigned long blipStartTime;
  * @param message the debug message
  */
 void debugLog(String message) {
-  if (DEBUG_ENABLED) {
-    Serial.println(message);
-  }
+    if (DEBUG_ENABLED) {
+        Serial.println(message);
+    }
 }
 
 /**
@@ -54,15 +57,15 @@ void debugLog(String message) {
  * Not crucial of the blip operation, just open close the LED and debug info.
  */
 void markClutchStateChange() {
-  // TODO open/close the LED
-  if (DEBUG_ENABLED) {
-    if (clutchSwitch.rose()) {
-      clutchPressedStartTime = millis();
-      debugLog("Clutch pressed");
-    } else if (clutchSwitch.fell()) {
-      debugLog("Clutch released, duration(ms):" + String(millis() - clutchPressedStartTime, DEC));
+    // TODO open/close the LED
+    if (DEBUG_ENABLED) {
+        if (clutchSwitch.rose()) {
+            clutchPressedStartTime = millis();
+            debugLog("Clutch pressed");
+        } else if (clutchSwitch.fell() && DEBUG_ENABLED) {
+            debugLog("Clutch released, duration(ms):" + String(millis() - clutchPressedStartTime, DEC));
+        }
     }
-  }
 }
 
 /**
@@ -70,44 +73,34 @@ void markClutchStateChange() {
  * Not crucial of the blip operation, just open close the LED and debug info.
  */
 void markBrakeStateChange() {
-  // TODO open/close the LED
-  if (DEBUG_ENABLED) {
-    if (brakeSwitch.rose()) {
-      brakePressedStartTime = millis();
-      debugLog("Brake pressed");
-    } else if (brakeSwitch.fell()) {
-      debugLog("Brake released, duration(ms):" + String(millis() - brakePressedStartTime, DEC));
+    // TODO open/close the LED
+    if (DEBUG_ENABLED) {
+        if (brakeSwitch.rose()) {
+            brakePressedStartTime = millis();
+            debugLog("Brake pressed");
+        } else if (brakeSwitch.fell() && DEBUG_ENABLED) {
+            debugLog("Brake released, duration(ms):" + String(millis() - brakePressedStartTime, DEC));
+        }
     }
-  }
-}
-
-/**
- * Check if a blip cancellation condition exists. For this to be true, the provided state
- * must be HIGH, the blip should not be already canceled and the blip duration must be more than
- * {@link MAX_BLIP_DURATION}.
- *
- * @param state the current state of the brake/clutch switch (HIGH -> both pressed)
- * @return true if the blip should be canceled, false otherwise
- */
-boolean shouldCancelBlip(boolean state) {
-  return blipStartTime != BLIP_CANCEL && state == HIGH && millis() - blipStartTime > MAX_BLIP_DURATION;
 }
 
 /**
  * Moves the throttle servo in the "blip" position.
  */
 void blipThrottle() {
-  blipStartTime = millis();
-  throttleServo.write(BLIP_THROTTLE_POSITION);
-  digitalWrite(BLIP_ACTIVE_PIN, HIGH);
+    blipStartTime = millis();
+    throttleServo.write(BLIP_THROTTLE_POSITION);
+    throttleBlip = true;
+    digitalWrite(BLIP_ACTIVE_PIN, HIGH);
 }
 
 /**
  * Moves the throttle servo in the closed position.
  */
 void closeThrottle() {
-  throttleServo.write(NO_THROTTLE_POSITION);
-  digitalWrite(BLIP_ACTIVE_PIN, LOW);
+    throttleServo.write(NO_THROTTLE_POSITION);
+    throttleBlip = false;
+    digitalWrite(BLIP_ACTIVE_PIN, LOW);
 }
 
 /**
@@ -118,61 +111,70 @@ void closeThrottle() {
  * @param state the current state of the brake/clutch switch (HIGH -> both pressed)
  */
 void applyThrottle(boolean state) {
-  if (state == HIGH) {
-    debugLog("\nStaring blip");
-    blipThrottle();
-  } else if(blipStartTime != BLIP_CANCEL) {
-    debugLog("Finishing blip, duration(ms): " + String(millis() - blipStartTime, DEC));
-    closeThrottle();
-  }
+    if (state == HIGH) {
+        blipThrottle();
+        debugLog("\nStaring blip");
+    } else if (blipStartTime != BLIP_CANCEL) {
+        closeThrottle();
+        if (DEBUG_ENABLED) {
+            debugLog("Ending blip, duration(ms): " + String(millis() - blipStartTime, DEC));
+        }
+    }
+}
+
+/**
+ * Checks if a blip cancellation condition exists and if this is true, closes the throttle.
+ * Such a condition is true when the throttle is blipped, the blip is not be already canceled
+ * and the blip duration is be more than {@link MAX_BLIP_DURATION}.
+ */
+void maybeCancelBlip() {
+    if (throttleBlip && blipStartTime != BLIP_CANCEL && millis() - blipStartTime > MAX_BLIP_DURATION) {
+        // Close the throttle and mark the blip as canceled
+        closeThrottle();
+        blipStartTime = BLIP_CANCEL;
+        if (DEBUG_ENABLED) {
+            debugLog("Canceling blip, max duration reached(ms): " + String(MAX_BLIP_DURATION, DEC));
+        }
+    }
 }
 
 void setup() {
-  if (DEBUG_ENABLED) {
-    Serial.begin(9600);
-  }
-  
-  clutchSwitch.attach(CLUTCH_SWITCH_PIN);
-  clutchSwitch.interval(DEBOUNCE_MS);
+    if (DEBUG_ENABLED) {
+        Serial.begin(9600);
+    }
 
-  brakeSwitch.attach(BRAKE_SWITCH_PIN);
-  brakeSwitch.interval(DEBOUNCE_MS);
-  
-  pinMode(BLIP_ACTIVE_PIN, OUTPUT);
-  throttleServo.attach(THROTTLE_SERVO_PIN);
+    clutchSwitch.attach(CLUTCH_SWITCH_PIN);
+    clutchSwitch.interval(DEBOUNCE_MS);
 
-  // Make sure that initially the servo will not interfere with the throttle
-  closeThrottle();
-  
-  debugLog("Initialized");
+    brakeSwitch.attach(BRAKE_SWITCH_PIN);
+    brakeSwitch.interval(DEBOUNCE_MS);
+
+    pinMode(BLIP_ACTIVE_PIN, OUTPUT);
+    throttleServo.attach(THROTTLE_SERVO_PIN);
+
+    // Make sure that initially the servo will not interfere with the throttle
+    closeThrottle();
+
+    debugLog("Initialized");
 }
 
 void loop() {
-  static boolean brakeStateChanged = brakeSwitch.update();
-  static boolean brakeState = brakeSwitch.read();
-  static boolean clutchStateChanged = clutchSwitch.update();
-  static boolean clutchState = clutchSwitch.read();
+    static boolean brakeStateChanged = brakeSwitch.update();
+    static boolean clutchStateChanged = clutchSwitch.update();
 
-  static boolean currentState = clutchState && brakeState;
+    if (clutchStateChanged || brakeStateChanged) {
+        // state changed so apply throttle according to the current state of the clutch/brake switches
+        applyThrottle(brakeSwitch.read() && clutchSwitch.read());
+    } else {
+        // Check and possibly cancel the blip
+        maybeCancelBlip();
+    } // Otherwise there will be no change in the throttle servo
 
-  if (clutchStateChanged || brakeStateChanged) {
-      // state changed so apply throttle
-      applyThrottle(currentState);
-  } else if (shouldCancelBlip(currentState)) {
-      debugLog("Canceling blip, max duration reached(ms): " + String(MAX_BLIP_DURATION, DEC));
-
-      // Close the throttle and mark the blip as canceled
-      closeThrottle();
-      blipStartTime = BLIP_CANCEL;
-  }
-  // if the switch state does not change and there is no blip cancellation condition
-  // there will be no change in the throttle servo
-
-  if (clutchStateChanged) {
-    markClutchStateChange();
-  }
-
-  if (brakeStateChanged) {
-    markBrakeStateChange();
-  }
+    // Non-crucial operations
+    if (clutchStateChanged) {
+        markClutchStateChange();
+    }
+    if (brakeStateChanged) {
+        markBrakeStateChange();
+    }
 }
