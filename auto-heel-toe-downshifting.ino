@@ -62,7 +62,7 @@ void markClutchStateChange() {
         if (clutchSwitch.rose()) {
             clutchPressedStartTime = millis();
             debugLog("Clutch pressed");
-        } else if (clutchSwitch.fell() && DEBUG_ENABLED) {
+        } else if (clutchSwitch.fell()) {
             debugLog("Clutch released, duration(ms):" + String(millis() - clutchPressedStartTime, DEC));
         }
     }
@@ -78,7 +78,7 @@ void markBrakeStateChange() {
         if (brakeSwitch.rose()) {
             brakePressedStartTime = millis();
             debugLog("Brake pressed");
-        } else if (brakeSwitch.fell() && DEBUG_ENABLED) {
+        } else if (brakeSwitch.fell()) {
             debugLog("Brake released, duration(ms):" + String(millis() - brakePressedStartTime, DEC));
         }
     }
