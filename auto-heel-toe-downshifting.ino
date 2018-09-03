@@ -50,10 +50,11 @@ void debugLog(String message) {
 }
 
 /**
- * Handles the event of clutch press/release.
+ * Marks the clutch as pressed / released.
+ * Not crucial of the blip operation, just open close the LED and debug info.
  */
-void handleClutchStateChange() {
-  // TODO open/close the led
+void markClutchStateChange() {
+  // TODO open/close the LED
   if (DEBUG_ENABLED) {
     if (clutchSwitch.rose()) {
       clutchPressedStartTime = millis();
@@ -65,16 +66,17 @@ void handleClutchStateChange() {
 }
 
 /**
- * Handles the event of brake press/release.
+ * Marks the brake as pressed / released.
+ * Not crucial of the blip operation, just open close the LED and debug info.
  */
-void handleBrakeStateChange() {
-  // TODO open/close the led
+void markBrakeStateChange() {
+  // TODO open/close the LED
   if (DEBUG_ENABLED) {
     if (brakeSwitch.rose()) {
       brakePressedStartTime = millis();
       debugLog("Brake pressed");
     } else if (brakeSwitch.fell()) {
-      debugLog("Brake released, duration(ms):" + String(millis() - clutchPressedStartTime, DEC));
+      debugLog("Brake released, duration(ms):" + String(millis() - brakePressedStartTime, DEC));
     }
   }
 }
@@ -139,8 +141,7 @@ void setup() {
   pinMode(BLIP_ACTIVE_PIN, OUTPUT);
   throttleServo.attach(THROTTLE_SERVO_PIN);
 
-  // Make sure that initially the servo will not interfere
-  // with the throttle
+  // Make sure that initially the servo will not interfere with the throttle
   closeThrottle();
   
   debugLog("Initialized");
@@ -154,14 +155,6 @@ void loop() {
 
   static boolean currentState = clutchState && brakeState;
 
-  if (clutchStateChanged) {
-    handleClutchStateChange();
-  }
-  
-  if (brakeStateChanged) {
-    handleBrakeStateChange();
-  }
-  
   if (clutchStateChanged || brakeStateChanged) {
       // state changed so apply throttle
       applyThrottle(currentState);
@@ -174,4 +167,12 @@ void loop() {
   }
   // if the switch state does not change and there is no blip cancellation condition
   // there will be no change in the throttle servo
+
+  if (clutchStateChanged) {
+    markClutchStateChange();
+  }
+
+  if (brakeStateChanged) {
+    markBrakeStateChange();
+  }
 }
