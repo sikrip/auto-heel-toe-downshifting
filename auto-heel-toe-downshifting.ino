@@ -5,9 +5,13 @@ const boolean DEBUG_ENABLED = true;
 const unsigned long DEBOUNCE_MS = 5;
 
 const int CLUTCH_SWITCH_PIN = 2;
+const int CLUTCH_PRESSED_PIN = 13;
+
 const int BRAKE_SWITCH_PIN = 4;
+const int BRAKE_PRESSED_PIN = 12;
+
 const int THROTTLE_SERVO_PIN = 9;
-const int BLIP_ACTIVE_PIN = 13;
+const int BLIP_ACTIVE_PIN = 7;
 
 const unsigned long MAX_BLIP_DURATION = 300;
 const unsigned long BLIP_CANCEL = 0;
@@ -57,7 +61,7 @@ void debugLog(String message) {
  * Not crucial of the blip operation, just open close the LED and debug info.
  */
 void markClutchStateChange() {
-    // TODO open/close the LED
+    digitalWrite(CLUTCH_PRESSED_PIN, clutchSwitch.rose());
     if (DEBUG_ENABLED) {
         if (clutchSwitch.rose()) {
             clutchPressedStartTime = millis();
@@ -73,7 +77,7 @@ void markClutchStateChange() {
  * Not crucial of the blip operation, just open close the LED and debug info.
  */
 void markBrakeStateChange() {
-    // TODO open/close the LED
+    digitalWrite(BRAKE_PRESSED_PIN, brakeSwitch.rose());
     if (DEBUG_ENABLED) {
         if (brakeSwitch.rose()) {
             brakePressedStartTime = millis();
@@ -145,9 +149,11 @@ void setup() {
 
     clutchSwitch.attach(CLUTCH_SWITCH_PIN);
     clutchSwitch.interval(DEBOUNCE_MS);
+    pinMode(CLUTCH_PRESSED_PIN, OUTPUT);
 
     brakeSwitch.attach(BRAKE_SWITCH_PIN);
     brakeSwitch.interval(DEBOUNCE_MS);
+    pinMode(BRAKE_PRESSED_PIN, OUTPUT);
 
     pinMode(BLIP_ACTIVE_PIN, OUTPUT);
     throttleServo.attach(THROTTLE_SERVO_PIN);
