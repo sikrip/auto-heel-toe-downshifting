@@ -1,8 +1,6 @@
 #include <Bounce2.h>
 #include <Servo.h>
 
-Servo throttleServo;
-
 const boolean DEBUG_ENABLED = true;
 const unsigned long DEBOUNCE_MS = 5;
 
@@ -14,7 +12,6 @@ const int BLIP_ACTIVE_PIN = 13;
 const unsigned long MAX_BLIP_DURATION = 300;
 const unsigned long BLIP_CANCEL = 0;
 
-
 // Position of the servo where the throttle is closed
 // (the servo does not touch the throttle)
 const int NO_THROTTLE_POSITION = 42;
@@ -22,6 +19,9 @@ const int NO_THROTTLE_POSITION = 42;
 // Position of the servo where the throttle is in
 // heel and toe state (throttle blip)
 const int BLIP_THROTTLE_POSITION = 60;
+
+// Used to open/close the throttle
+Servo throttleServo;
 
 // True when the throttle is blipped, false otherwise
 boolean throttleBlip = false;
@@ -163,10 +163,10 @@ void loop() {
     static boolean clutchStateChanged = clutchSwitch.update();
 
     if (clutchStateChanged || brakeStateChanged) {
-        // state changed so apply throttle according to the current state of the clutch/brake switches
+        // State changed so apply throttle according to the current state of the clutch/brake switches
         applyThrottle(brakeSwitch.read() && clutchSwitch.read());
     } else {
-        // Check and possibly cancel the blip
+        // No change in the clutch/brake state, check and possibly cancel the blip
         maybeCancelBlip();
     } // Otherwise there will be no change in the throttle servo
 
