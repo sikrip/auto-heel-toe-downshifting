@@ -1,19 +1,32 @@
 #include <Bounce2.h>
 #include <Servo.h>
 
+// When true, debug messages will be printed
 const boolean DEBUG_ENABLED = true;
+// The duration in ms of the software debounce performed when reading the 
+// state of the switches.
 const unsigned long DEBOUNCE_MS = 5;
 
+// Connects to the switch that reads HIGH when the clutch is pressed.
 const int CLUTCH_SWITCH_PIN = 2;
+// Connects to the LED that indicates that the clutch pedal is pressed.
 const int CLUTCH_PRESSED_PIN = 13;
 
+// Connects to the switch that reads HIGH when the brake is pressed.
 const int BRAKE_SWITCH_PIN = 4;
+// Connects to the LED that indicates that the brake pedal is pressed.
 const int BRAKE_PRESSED_PIN = 12;
 
+// Connects to the servo that acts on the throttle
 const int THROTTLE_SERVO_PIN = 9;
+// Connects to the LED that indicates an active blip
 const int BLIP_ACTIVE_PIN = 7;
+// Connects to the potentiometer that decides the blip duration
+const int BLIP_DURATION_PIN = 0;
 
-const unsigned long MAX_BLIP_DURATION = 300;
+// Blip duration cannot be more than this value
+const unsigned long MAX_BLIP_DURATION = 500;
+// Value of the blipStartTime that indicates that the blip is canceled
 const unsigned long BLIP_CANCEL = 0;
 
 // Position of the servo where the throttle is closed
@@ -30,6 +43,9 @@ Servo throttleServo;
 // True when the throttle is blipped, false otherwise
 boolean throttleBlip = false;
 
+// The allowed blip duration (set via potentiometer)
+int blipDuration = 0;
+
 // The clutch switch
 Bounce clutchSwitch = Bounce();
 // Holds the start time of clutch pressed event
@@ -42,7 +58,6 @@ unsigned long brakePressedStartTime;
 
 // Holds the start time of the throttle blip
 unsigned long blipStartTime;
-
 
 /**
  * If debug is enabled, writes the provided message to
@@ -92,10 +107,15 @@ void markBrakeStateChange() {
  * Moves the throttle servo in the "blip" position.
  */
 void blipThrottle() {
-    blipStartTime = millis();
-    throttleServo.write(BLIP_THROTTLE_POSITION);
-    throttleBlip = true;
-    digitalWrite(BLIP_ACTIVE_PIN, HIGH);
+    if (blipDuration > 0) {
+      blipStartTime = millis();
+      throttleServo.write(BLIP_THROTTLE_POSITION);
+      throttleBlip = true;
+      digitalWrite(BLIP_ACTIVE_PIN, HIGH);
+      debugLog("\nStaring blip");
+    } else if (DEBUG_ENABLED){
+      debugLog("Auto blip is turned off");
+    }
 }
 
 /**
@@ -117,7 +137,6 @@ void closeThrottle() {
 void applyThrottle(boolean state) {
     if (state == HIGH) {
         blipThrottle();
-        debugLog("\nStaring blip");
     } else if (blipStartTime != BLIP_CANCEL) {
         closeThrottle();
         if (DEBUG_ENABLED) {
@@ -129,17 +148,24 @@ void applyThrottle(boolean state) {
 /**
  * Checks if a blip cancellation condition exists and if this is true, closes the throttle.
  * Such a condition is true when the throttle is blipped, the blip is not be already canceled
- * and the blip duration is be more than {@link MAX_BLIP_DURATION}.
+ * and the blip duration is be more than {@link blipDuration}.
  */
 void maybeCancelBlip() {
-    if (throttleBlip && blipStartTime != BLIP_CANCEL && millis() - blipStartTime > MAX_BLIP_DURATION) {
+    if (throttleBlip && blipStartTime != BLIP_CANCEL && millis() - blipStartTime > blipDuration) {
         // Close the throttle and mark the blip as canceled
         closeThrottle();
         blipStartTime = BLIP_CANCEL;
         if (DEBUG_ENABLED) {
-            debugLog("Canceling blip, max duration reached(ms): " + String(MAX_BLIP_DURATION, DEC));
+            debugLog("Canceling blip, max duration reached(ms): " + String(blipDuration, DEC));
         }
     }
+}
+
+/**
+ * Sets the blip duration based on the value read by a potentiometer.
+ */
+void readBlipDuration() {
+  blipDuration = map(analogRead(BLIP_DURATION_PIN), 0, 1023, 0, MAX_BLIP_DURATION);
 }
 
 void setup() {
@@ -165,22 +191,23 @@ void setup() {
 }
 
 void loop() {
+    readBlipDuration();
     boolean brakeStateChanged = brakeSwitch.update();
     boolean clutchStateChanged = clutchSwitch.update();
-
-    if (clutchStateChanged || brakeStateChanged) {
-        // State changed so apply throttle according to the current state of the clutch/brake switches
-        applyThrottle(brakeSwitch.read() && clutchSwitch.read());
-    } else {
-        // No change in the clutch/brake state, check and possibly cancel the blip
-        maybeCancelBlip();
-    } // Otherwise there will be no change in the throttle servo
-
-    // Non-crucial operations
+    
     if (clutchStateChanged) {
         markClutchStateChange();
     }
     if (brakeStateChanged) {
         markBrakeStateChange();
     }
+    
+    if (clutchStateChanged || brakeStateChanged) {
+        // State changed so apply throttle according to the current state of the clutch/brake switches
+        applyThrottle(brakeSwitch.read() && clutchSwitch.read());
+    } else {
+        // No change in the clutch/brake state, check and possibly cancel the blip
+        maybeCancelBlip();
+    }
+    // Otherwise there will be no change in the throttle servo
 }
