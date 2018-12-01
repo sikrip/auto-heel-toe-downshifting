@@ -2,7 +2,7 @@
 #include <Servo.h>
 
 // When true, debug messages will be printed
-const boolean DEBUG_ENABLED = true;
+const boolean DEBUG_ENABLED = false;
 // The duration in ms of the software debounce performed when reading the 
 // state of the switches.
 const unsigned long DEBOUNCE_MS = 5;
@@ -21,21 +21,33 @@ const int BRAKE_PRESSED_PIN = 12;
 const int THROTTLE_SERVO_PIN = 9;
 // Connects to the LED that indicates an active blip
 const int BLIP_ACTIVE_PIN = 7;
-// Connects to the potentiometer that decides the blip duration
+// Connects to the potentiometer that decides the blip duration(analog pin)
 const int BLIP_DURATION_PIN = 0;
+// Connects to the potentiometer that decides the blip amount(analog pin)
+const int BLIP_AMOUNT_PIN = 1;
 
-// Blip duration cannot be more than this value
+// Blip duration cannot be more than this value (ms)
 const unsigned long MAX_BLIP_DURATION = 500;
+// Blip duration cannot be less tha this valuw (ms)
+const unsigned long MIN_BLIP_DURATION = 50;
 // Value of the blipStartTime that indicates that the blip is canceled
 const unsigned long BLIP_CANCEL = 0;
 
 // Position of the servo where the throttle is closed
 // (the servo does not touch the throttle)
-const int NO_THROTTLE_POSITION = 42;
+const int NO_THROTTLE_POSITION = 41;
+
+// Position of the servo where the throttle is in blipped
+// (min blip value)
+const int MIN_BLIP_POSITION = 60;
+
+// Position of the servo where the throttle is in blipped
+// (max blip value)
+const int MAX_BLIP_POSITION = 100;
 
 // Position of the servo where the throttle is in
 // heel and toe state (throttle blip)
-const int BLIP_THROTTLE_POSITION = 60;
+int blipThrottlePosition;
 
 // Used to open/close the throttle
 Servo throttleServo;
@@ -109,7 +121,7 @@ void markBrakeStateChange() {
 void blipThrottle() {
     if (blipDuration > 0) {
       blipStartTime = millis();
-      throttleServo.write(BLIP_THROTTLE_POSITION);
+      throttleServo.write(blipThrottlePosition);
       throttleBlip = true;
       digitalWrite(BLIP_ACTIVE_PIN, HIGH);
       debugLog("\nStaring blip");
@@ -165,7 +177,14 @@ void maybeCancelBlip() {
  * Sets the blip duration based on the value read by a potentiometer.
  */
 void readBlipDuration() {
-  blipDuration = map(analogRead(BLIP_DURATION_PIN), 0, 1023, 0, MAX_BLIP_DURATION);
+  blipDuration = map(analogRead(BLIP_DURATION_PIN), 0, 1023, MIN_BLIP_DURATION, MAX_BLIP_DURATION);
+}
+
+/**
+ * Sets the blip amount based on the value read by a potentiometer.
+ */
+void readBlipAmount() {  
+  blipThrottlePosition = map(analogRead(BLIP_AMOUNT_PIN), 0, 1023, MIN_BLIP_POSITION, MAX_BLIP_POSITION);
 }
 
 void setup() {
@@ -192,6 +211,7 @@ void setup() {
 
 void loop() {
     readBlipDuration();
+    readBlipAmount();
     boolean brakeStateChanged = brakeSwitch.update();
     boolean clutchStateChanged = clutchSwitch.update();
     
