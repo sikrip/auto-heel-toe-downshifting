@@ -17,7 +17,7 @@ const int BRAKE_SWITCH_PIN = 4;
 // Connects to the LED that indicates that the brake pedal is pressed.
 const int BRAKE_PRESSED_PIN = 12;
 
-// Connects to the servo that acts on the throttle
+// Connects to the servo that moves the throttle
 const int THROTTLE_SERVO_PIN = 9;
 // Connects to the LED that indicates an active blip
 const int BLIP_ACTIVE_PIN = 7;
