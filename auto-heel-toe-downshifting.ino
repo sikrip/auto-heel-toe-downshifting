@@ -1,6 +1,8 @@
 #include <Bounce2.h>
 #include <Servo.h>
 
+// It's experimental and for off road use only, use it on your own risk!
+
 // When true, debug messages will be printed
 const boolean DEBUG_ENABLED = false;
 // The duration in ms of the software debounce performed when reading the 
