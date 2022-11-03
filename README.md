@@ -4,11 +4,8 @@ Auto heel and toe downshifting with arduino.
 
 A servo motor is used to operate the throttle and simulate the "pedal blip".
 
-Intented to became something like this http://auto-blip.com/.
+Intended to become something like this http://auto-blip.com/.
 
-Check some videos bellow:
+Video of actual usage/implementation: https://www.youtube.com/watch?v=0O07_MhlUCM
 
-* https://youtu.be/2Wk_qwVAaeI
-* https://youtu.be/E_qGJTJcC3s
-
-It's experimental and for off road use only, use it on your own risk!
+It's experimental and for off-road use only, use it on your own risk!
