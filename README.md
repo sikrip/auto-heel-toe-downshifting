@@ -6,6 +6,10 @@ A servo motor is used to operate the throttle and simulate the "pedal blip".
 
 Intended to become something like this http://auto-blip.com/.
 
+The basic idea is that you have one switch for the clutch and one switch for the brake pedal.
+
+When both these pedals are pressed, the servo motor is activated in order to open the throttle.
+
 Here is the wiring:
 ![wiring](https://github.com/sikrip/auto-heel-toe-downshifting/blob/master/heel%20and%20toe.png
  "Heel and toe wiring")
