@@ -8,4 +8,4 @@ Intended to become something like this http://auto-blip.com/.
 
 Video of actual usage/implementation: https://www.youtube.com/watch?v=0O07_MhlUCM
 
-It's experimental and for off-road use only, use it on your own risk!
+**It's experimental and for off-road use only, use it on your own risk!**
